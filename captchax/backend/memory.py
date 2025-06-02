@@ -26,7 +26,7 @@ class MemoryBackend(CaptchaBackend):
     def _cleanup_expired(self) -> None:
         """Remove expired CAPTCHA entries."""
         current_time = int(time.time())
-        expired = [k for k, v in self._storage.items() if v[1] < current_time]
+        expired = [k for k, v in self._storage.items() if v[1] <= current_time]
         for key in expired:
             del self._storage[key]
             

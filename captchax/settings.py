@@ -5,7 +5,6 @@ This module handles the configuration settings for the CAPTCHA system, including
 image generation parameters, storage backend settings, and validation options.
 """
 
-import os
 from typing import Dict, Any, Optional
 from django.conf import settings
 import importlib.resources

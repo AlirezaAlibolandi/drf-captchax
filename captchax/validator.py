@@ -104,7 +104,10 @@ class CaptchaValidator:
             self.backend.delete_captcha(captcha_id)
             return True
         else:
-            self.backend.increment_attempts(captcha_id)
+            attempts = self.backend.increment_attempts(captcha_id)
+            if attempts >= self.max_attempts:
+                self.backend.delete_captcha(captcha_id)
+                raise ValidationError("Maximum CAPTCHA attempts exceeded")
             raise ValidationError("Invalid CAPTCHA response")
 
     def get_validation_data(self) -> Dict[str, Any]:

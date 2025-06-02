@@ -4,7 +4,7 @@ Tests for CAPTCHA validation functionality.
 
 import pytest
 from django.test import RequestFactory
-from rest_framework.exceptions import ValidationError
+from django.core.exceptions import ValidationError
 from captchax.validator import CaptchaValidator, CaptchaSerializer
 from captchax.backend.memory import MemoryBackend
 
@@ -77,23 +77,30 @@ def test_validator_validate_case_sensitive():
     validator.backend.store_captcha(captcha_id, "TEST123", 300)
     
     # Should fail with different case
-    with pytest.raises(ValidationError):
+    with pytest.raises(ValidationError, match="Invalid CAPTCHA response"):
         validator.validate("test123", captcha_id)
+        
+    # Should pass with same case
+    assert validator.validate("TEST123", captcha_id) is True
 
 
-def test_validator_max_attempts(validator, backend):
+def test_validator_max_attempts():
     """Test maximum attempts limit."""
+    validator = CaptchaValidator(max_attempts=3, backend_class=MemoryBackend)
     captcha_id = "test-id"
-    backend.store_captcha(captcha_id, "TEST123", 300)
+    validator.backend.store_captcha(captcha_id, "TEST123", 300)
     
-    # Make max_attempts invalid attempts
-    for _ in range(validator.max_attempts):
-        with pytest.raises(ValidationError):
+    # Make max_attempts-1 invalid attempts
+    for _ in range(validator.max_attempts - 1):
+        with pytest.raises(ValidationError, match="Invalid CAPTCHA response"):
             validator.validate("WRONG", captcha_id)
             
     # Next attempt should fail with max attempts error
     with pytest.raises(ValidationError, match="Maximum CAPTCHA attempts exceeded"):
-        validator.validate("TEST123", captcha_id)
+        validator.validate("WRONG", captcha_id)
+        
+    # CAPTCHA should be deleted
+    assert validator.backend.get_captcha(captcha_id) is None
 
 
 def test_serializer():
