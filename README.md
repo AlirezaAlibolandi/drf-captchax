@@ -1,5 +1,6 @@
 # DRF-CaptchaX
 
+[![PyPI version](https://badge.fury.io/py/drf-captchax.svg)](https://badge.fury.io/py/drf-captchax)
 [![Python Versions](https://img.shields.io/pypi/pyversions/drf-captchax.svg)](https://pypi.org/project/drf-captchax/)
 [![Django Versions](https://img.shields.io/badge/django-3.2%2B-blue)](https://www.djangoproject.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
