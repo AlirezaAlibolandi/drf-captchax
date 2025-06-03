@@ -1,5 +1,6 @@
 # DRF-CaptchaX
 
+![Tests](https://github.com/AlirezaAlibolandi/drf-captchax/actions/workflows/tests.yml/badge.svg)
 [![PyPI version](https://badge.fury.io/py/drf-captchax.svg)](https://badge.fury.io/py/drf-captchax)
 [![Python Versions](https://img.shields.io/pypi/pyversions/drf-captchax.svg)](https://pypi.org/project/drf-captchax/)
 [![Django Versions](https://img.shields.io/badge/django-3.2%2B-blue)](https://www.djangoproject.com/)
@@ -231,9 +232,3 @@ Created and maintained by [Alireza Alibolandi](https://github.com/AlirezaAlibola
 ## Support
 
 - 📫 Report issues on [GitHub](https://github.com/AlirezaAlibolandi/drf-captchax/issues)
-- 📚 Read the [documentation](https://drf-captchax.readthedocs.io/)
-- 💬 Ask questions on [Stack Overflow](https://stackoverflow.com/questions/tagged/drf-captchax)
-
-## Star History
-
-[![Star History Chart](https://api.star-history.com/svg?repos=AlirezaAlibolandi/drf-captchax&type=Date)](https://star-history.com/#AlirezaAlibolandi/drf-captchax&Date)
