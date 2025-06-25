@@ -1,1 +1,2 @@
 recursive-include captchax/static *
+recursive-include captchax/backend *.py

@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='drf-captchax',
-    version='0.1.1',
+    version='0.1.2',
     description='Pluggable captcha support for Django REST Framework',
     author='Alireza Alibolandi',
     author_email='alirezaalibolandi@duck.com',
