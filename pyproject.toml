@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "drf-captchax"
-version = "0.1.0"
+version = "0.1.1"
 description = "Pluggable captcha support for Django REST Framework."
 authors = [
     { name = "Alireza Alibolandi", email = "alirezaalibolandi@duck.com" }
