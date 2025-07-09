@@ -28,13 +28,13 @@ class GenerateCaptchaView(APIView):
         """
         # Generate CAPTCHA
         generator = CaptchaGenerator()
-        captcha_id, image = generator.generate_image()
+        captcha_id, image, text = generator.generate_image()
         
         # Store CAPTCHA
         backend = get_backend_class()()
         backend.store_captcha(
             captcha_id,
-            image.text,  # Access the generated text
+            text,
             CAPTCHAX_CONFIG["TIMEOUT"]
         )
         

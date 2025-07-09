@@ -123,9 +123,7 @@ class CaptchaValidator:
         }
 
 
+
 class CaptchaSerializer(serializers.Serializer):
-    """
-    Serializer for CAPTCHA validation.
-    """
-    captcha_id = serializers.CharField()
-    captcha_text = serializers.CharField(validators=[CaptchaValidator()])
+    """Serializer for CAPTCHA validation."""
+    captcha_id = serializers.CharField()    captcha_text = serializers.CharField(validators=[CaptchaValidator()])
