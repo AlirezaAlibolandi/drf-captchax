@@ -88,7 +88,7 @@ class CaptchaGenerator:
             y2 = random.randint(0, height)
             draw.line([(x1, y1), (x2, y2)], fill=self.config["TEXT_COLOR"])
             
-    def generate_image(self, text: Optional[str] = None) -> Tuple[str, Image.Image]:
+    def generate_image(self, text: Optional[str] = None) -> Tuple[str, Image.Image, str]:
         """
         Generate a CAPTCHA image.
         
@@ -96,7 +96,7 @@ class CaptchaGenerator:
             text: Optional custom text for the CAPTCHA
             
         Returns:
-            Tuple of (captcha_id, PIL Image)
+            Tuple of (captcha_id, PIL Image, text)
         """
         text = text or generate_text(self.config["LENGTH"])
         width = self.config["WIDTH"]
@@ -120,5 +120,4 @@ class CaptchaGenerator:
             
         # Draw text
         draw.text((x, y), text, font=self.font, fill=hex_to_rgb(self.config["TEXT_COLOR"]))
-        
-        return str(uuid.uuid4()), image
+        return str(uuid.uuid4()), image, text
