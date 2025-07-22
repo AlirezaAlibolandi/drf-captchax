@@ -5,12 +5,18 @@ Django settings for running tests.
 SECRET_KEY = 'test-key'
 
 INSTALLED_APPS = [
+    'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'rest_framework',
     'captchax',
+    'api',
 ]
+
+ROOT_URLCONF = 'demo_project.demo_project.urls'
+
+ALLOWED_HOSTS = ['testserver']
 
 DATABASES = {
     'default': {
