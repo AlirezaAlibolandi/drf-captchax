@@ -1,53 +1,80 @@
-"""Tests for CAPTCHA generation functionality."""
+"""Tests for CAPTCHA image generation."""
+
+import base64
 
 import pytest
 from PIL import Image
 
-from captchax.captcha import CaptchaGenerator, generate_text
-from captchax.settings import CAPTCHAX_CONFIG
+from captchax.backend.image import ImageCaptchaBackend
+from captchax.captcha import CaptchaGenerator, generate_text, hex_to_rgb
+from captchax.settings import get_config
 
 
 def test_generate_text():
-    """Test CAPTCHA text generation."""
+    """Generate text using default and custom lengths."""
+    config = get_config()
     text = generate_text()
-    assert len(text) == CAPTCHAX_CONFIG['LENGTH']
-    assert text.isupper()
-    assert all(c.isalnum() for c in text)
+    assert len(text) == config["LENGTH"]
+    assert set(text) <= set(config["CHARACTERS"])
+    assert len(generate_text(8)) == 8
 
-    custom_length = 8
-    text = generate_text(custom_length)
-    assert len(text) == custom_length
+
+def test_generate_text_rejects_invalid_values():
+    """Reject invalid lengths and alphabets."""
+    with pytest.raises(ValueError, match="positive integer"):
+        generate_text(0)
+    with pytest.raises(ValueError, match="at least two"):
+        generate_text(4, "A")
+
+
+def test_hex_to_rgb():
+    """Parse supported Pillow color values."""
+    assert hex_to_rgb("#ffffff") == (255, 255, 255)
+    assert hex_to_rgb("black") == (0, 0, 0)
+    with pytest.raises(ValueError, match="Invalid color"):
+        hex_to_rgb("not-a-color")
 
 
 def test_captcha_generator_init():
-    """Test CaptchaGenerator initialization."""
+    """Initialize default and overridden generator settings."""
     generator = CaptchaGenerator()
-    assert generator.config['LENGTH'] == CAPTCHAX_CONFIG['LENGTH']
+    assert generator.config["LENGTH"] == get_config()["LENGTH"]
     assert generator.font is not None
 
-    custom_config = {'LENGTH': 8, 'WIDTH': 300}
-    generator = CaptchaGenerator(**custom_config)
-    assert generator.config['LENGTH'] == 8
-    assert generator.config['WIDTH'] == 300
+    generator = CaptchaGenerator(LENGTH=8, WIDTH=300)
+    assert generator.config["LENGTH"] == 8
+    assert generator.config["WIDTH"] == 300
 
 
 def test_captcha_generator_image():
-    """Test CAPTCHA image generation."""
+    """Generate correctly sized images and preserve supplied text."""
     generator = CaptchaGenerator()
-
     captcha_id, image, text = generator.generate_image()
-    assert isinstance(captcha_id, str)
-    assert len(captcha_id) > 0
+    assert captcha_id
+    assert text
     assert isinstance(image, Image.Image)
-    assert image.size == (CAPTCHAX_CONFIG['WIDTH'], CAPTCHAX_CONFIG['HEIGHT'])
+    assert image.size == (get_config()["WIDTH"], get_config()["HEIGHT"])
 
-    custom_text = "TEST123"
-    captcha_id, image, returned_text = generator.generate_image(custom_text)
-    assert returned_text == custom_text
-    assert isinstance(image, Image.Image)
-    assert image.size == (CAPTCHAX_CONFIG['WIDTH'], CAPTCHAX_CONFIG['HEIGHT'])
+    _, custom_image, returned_text = generator.generate_image("TEST123")
+    assert returned_text == "TEST123"
+    assert isinstance(custom_image, Image.Image)
 
 
-def test_captcha_generator_invalid_font():
-    """Test CaptchaGenerator with invalid font path."""
-    with pytest.raises(ValueError):        CaptchaGenerator(FONT_PATH="/nonexistent/font.ttf")
+def test_captcha_generator_invalid_config():
+    """Reject missing fonts and invalid dimensions or noise."""
+    with pytest.raises(ValueError, match="Font file not found"):
+        CaptchaGenerator(FONT_PATH="/nonexistent/font.ttf")
+    with pytest.raises(ValueError, match="WIDTH"):
+        CaptchaGenerator(WIDTH=0)
+    with pytest.raises(ValueError, match="NOISE_LEVEL"):
+        CaptchaGenerator(NOISE_LEVEL=101)
+
+
+def test_compatibility_image_backend():
+    """Keep the legacy image backend functional."""
+    backend = ImageCaptchaBackend(LENGTH=4)
+    text = backend.generate_text()
+    data_uri = backend.generate_image(text)
+    prefix, encoded = data_uri.split(",", 1)
+    assert prefix == "data:image/png;base64"
+    assert base64.b64decode(encoded).startswith(b"\x89PNG")

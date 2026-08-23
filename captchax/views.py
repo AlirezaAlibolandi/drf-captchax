@@ -1,75 +1,53 @@
-"""
-Views for CAPTCHA generation and validation.
-"""
+"""HTTP endpoints for CAPTCHA generation and validation."""
 
-from rest_framework.views import APIView
-from rest_framework.response import Response
 from rest_framework import status
-from django.http import HttpResponse
+from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
 from .captcha import CaptchaGenerator
-from .validator import CaptchaSerializer
+from .settings import get_backend_instance, get_config
 from .utils import image_to_base64
-from .settings import CAPTCHAX_CONFIG, get_backend_class
+from .validator import CaptchaSerializer
 
 
 class GenerateCaptchaView(APIView):
-    """
-    View for generating new CAPTCHA images.
-    """
-    
+    """Generate and persist a new CAPTCHA challenge."""
+
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
     def get(self, request, *args, **kwargs):
-        """
-        Generate a new CAPTCHA image.
-        
-        Returns:
-            JSON response with:
-            - captcha_id: Unique identifier for the CAPTCHA
-            - image: Base64 encoded CAPTCHA image
-        """
-        # Generate CAPTCHA
+        """Return a new CAPTCHA identifier and PNG data URI."""
         generator = CaptchaGenerator()
         captcha_id, image, text = generator.generate_image()
-        
-        # Store CAPTCHA
-        backend = get_backend_class()()
-        backend.store_captcha(
+        get_backend_instance().store_captcha(
             captcha_id,
             text,
-            CAPTCHAX_CONFIG["TIMEOUT"]
+            get_config()["TIMEOUT"],
         )
-        
-        # Convert image to base64
-        image_data = image_to_base64(image)
-        
-        return Response({
-            'captcha_id': captcha_id,
-            'image': f"data:image/png;base64,{image_data}"
-        })
+        response = Response(
+            {
+                "captcha_id": captcha_id,
+                "image": f"data:image/png;base64,{image_to_base64(image)}",
+            }
+        )
+        response["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        response["Pragma"] = "no-cache"
+        return response
 
 
 class ValidateCaptchaView(APIView):
-    """
-    View for validating CAPTCHA responses.
-    """
-    
+    """Validate and consume a CAPTCHA challenge."""
+
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
     def post(self, request, *args, **kwargs):
-        """
-        Validate a CAPTCHA response.
-        
-        Expected POST data:
-        - captcha_id: The CAPTCHA identifier
-        - captcha_text: The user's response text
-        
-        Returns:
-            200 OK if valid
-            400 Bad Request if invalid
-        """
+        """Return success when the supplied CAPTCHA pair is valid."""
         serializer = CaptchaSerializer(data=request.data)
-        
-        if serializer.is_valid():
-            return Response({'detail': 'CAPTCHA validation successful'})
-        
+        serializer.is_valid(raise_exception=True)
         return Response(
-            serializer.errors,
-            status=status.HTTP_400_BAD_REQUEST
-        ) 
+            {"detail": "CAPTCHA validation successful"},
+            status=status.HTTP_200_OK,
+        )

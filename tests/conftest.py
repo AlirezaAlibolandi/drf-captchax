@@ -1,18 +1,28 @@
-"""
-Pytest configuration for Django tests.
-"""
+"""Shared pytest configuration."""
 
 import os
 import sys
 from pathlib import Path
-import django
-from django.conf import settings
+
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(BASE_DIR / "demo_project"))
+DEMO_DIR = BASE_DIR / "demo_project"
+if str(DEMO_DIR) not in sys.path:
+    sys.path.insert(0, str(DEMO_DIR))
 
-# Configure Django settings for tests
-def pytest_configure():
-    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'tests.settings')
-    settings.DEBUG = False
-    django.setup() 
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "tests.settings")
+
+import django
+
+django.setup()
+
+from captchax.backend.memory import MemoryBackend
+
+
+@pytest.fixture(autouse=True)
+def clear_memory_backend():
+    """Isolate tests that use the process-local memory backend."""
+    MemoryBackend.clear()
+    yield
+    MemoryBackend.clear()

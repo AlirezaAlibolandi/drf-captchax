@@ -1,76 +1,40 @@
-"""
-CAPTCHA storage backend package.
-
-This package provides storage backends for CAPTCHA data,
-including memory-based and Redis-based implementations.
-"""
+"""Storage backend interface for DRF-CaptchaX."""
 
 from abc import ABC, abstractmethod
 from typing import Optional
 
 
 class CaptchaBackend(ABC):
-    """
-    Abstract base class for CAPTCHA storage backends.
-    """
-    
+    """Define the storage operations required by CAPTCHA validation."""
+
     @abstractmethod
     def store_captcha(self, captcha_id: str, text: str, timeout: int) -> None:
-        """
-        Store a CAPTCHA text with its ID.
-        
-        Args:
-            captcha_id: Unique identifier for the CAPTCHA
-            text: The CAPTCHA text to store
-            timeout: Time in seconds until the CAPTCHA expires
-        """
-        pass
-        
+        """Store CAPTCHA text with an expiration timeout."""
+        raise NotImplementedError
+
     @abstractmethod
     def get_captcha(self, captcha_id: str) -> Optional[str]:
-        """
-        Retrieve a stored CAPTCHA text.
-        
-        Args:
-            captcha_id: The CAPTCHA ID to look up
-            
-        Returns:
-            The stored CAPTCHA text or None if not found
-        """
-        pass
-        
+        """Return stored CAPTCHA text or None when unavailable."""
+        raise NotImplementedError
+
     @abstractmethod
     def delete_captcha(self, captcha_id: str) -> None:
-        """
-        Delete a stored CAPTCHA.
-        
-        Args:
-            captcha_id: The CAPTCHA ID to delete
-        """
-        pass
-        
+        """Delete all state associated with a CAPTCHA identifier."""
+        raise NotImplementedError
+
     @abstractmethod
     def get_attempts(self, captcha_id: str) -> int:
-        """
-        Get the number of validation attempts for a CAPTCHA.
-        
-        Args:
-            captcha_id: The CAPTCHA ID to check
-            
-        Returns:
-            Number of validation attempts
-        """
-        pass
-        
+        """Return the current validation attempt count."""
+        raise NotImplementedError
+
     @abstractmethod
     def increment_attempts(self, captcha_id: str) -> int:
-        """
-        Increment the number of validation attempts.
-        
-        Args:
-            captcha_id: The CAPTCHA ID to increment
-            
-        Returns:
-            New number of attempts
-        """
-        pass
+        """Increment and return the validation attempt count."""
+        raise NotImplementedError
+
+    def consume_captcha(self, captcha_id: str) -> Optional[str]:
+        """Return and delete a CAPTCHA, with built-in backends overriding atomically."""
+        text = self.get_captcha(captcha_id)
+        if text is not None:
+            self.delete_captcha(captcha_id)
+        return text

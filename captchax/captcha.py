@@ -1,123 +1,129 @@
-"""
-CAPTCHA image generation module.
+"""CAPTCHA text and image generation."""
 
-This module provides functionality for generating CAPTCHA images
-with customizable text, styling, and noise options.
-"""
-
-import os
 import random
-import string
+import secrets
 import uuid
-from typing import Tuple, Optional
-from PIL import Image, ImageDraw, ImageFont
-from .settings import CAPTCHAX_CONFIG
+from pathlib import Path
+from typing import Optional, Tuple
+
+from PIL import Image, ImageColor, ImageDraw, ImageFont
+
+from .settings import get_config
+
+_RANDOM = random.SystemRandom()
 
 
-def generate_text(length: Optional[int] = None) -> str:
-    """
-    Generate random CAPTCHA text.
-    
-    Args:
-        length: Optional custom length for the text
-        
-    Returns:
-        Random string for CAPTCHA
-    """
-    length = length or CAPTCHAX_CONFIG["LENGTH"]
-    chars = string.ascii_uppercase + string.digits
-    return ''.join(random.choice(chars) for _ in range(length))
+def generate_text(length: Optional[int] = None, characters: Optional[str] = None) -> str:
+    """Generate cryptographically strong random CAPTCHA text."""
+    config = get_config()
+    text_length = config["LENGTH"] if length is None else length
+    alphabet = config["CHARACTERS"] if characters is None else characters
+
+    if not isinstance(text_length, int) or text_length <= 0:
+        raise ValueError("CAPTCHA length must be a positive integer")
+    if not isinstance(alphabet, str) or len(alphabet) < 2:
+        raise ValueError("CAPTCHA characters must contain at least two characters")
+
+    return "".join(secrets.choice(alphabet) for _ in range(text_length))
 
 
-def hex_to_rgb(hex_color: str) -> Tuple[int, int, int]:
-    """
-    Convert hex color to RGB tuple.
-    
-    Args:
-        hex_color: Color in hex format (e.g. '#ffffff')
-        
-    Returns:
-        Tuple of RGB values
-    """
-    hex_color = hex_color.lstrip('#')
-    return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+def hex_to_rgb(color: str) -> Tuple[int, int, int]:
+    """Convert a Pillow-compatible color string to an RGB tuple."""
+    try:
+        rgb = ImageColor.getrgb(color)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"Invalid color value: {color!r}") from exc
+    if len(rgb) == 4:
+        return rgb[:3]
+    return rgb
 
 
 class CaptchaGenerator:
-    """
-    CAPTCHA image generator with customizable options.
-    """
-    
+    """Generate CAPTCHA images using configurable dimensions, font, and noise."""
+
     def __init__(self, **kwargs):
-        """
-        Initialize the generator with custom settings.
-        
-        Args:
-            **kwargs: Override default settings from CAPTCHAX_CONFIG
-        """
-        self.config = CAPTCHAX_CONFIG.copy()
+        """Initialize the generator using project settings plus local overrides."""
+        self.config = get_config()
         self.config.update(kwargs)
-        
-        if not os.path.exists(self.config["FONT_PATH"]):
-            raise ValueError(f"Font file not found: {self.config['FONT_PATH']}")
-            
+        self._validate_config()
+        self.text_color = hex_to_rgb(self.config["TEXT_COLOR"])
+        self.background_color = hex_to_rgb(self.config["BACKGROUND_COLOR"])
         self.font = ImageFont.truetype(
             self.config["FONT_PATH"],
-            size=self.config["FONT_SIZE"]
+            size=self.config["FONT_SIZE"],
         )
-        
-    def _add_noise_dots(self, draw: ImageDraw.ImageDraw, width: int, height: int) -> None:
+
+    def _validate_config(self) -> None:
+        """Validate settings that can otherwise fail deep inside Pillow."""
+        for key in ("WIDTH", "HEIGHT", "FONT_SIZE", "LENGTH"):
+            value = self.config[key]
+            if not isinstance(value, int) or value <= 0:
+                raise ValueError(f"{key} must be a positive integer")
+
+        noise_level = self.config["NOISE_LEVEL"]
+        if not isinstance(noise_level, (int, float)) or not 0 <= noise_level <= 100:
+            raise ValueError("NOISE_LEVEL must be between 0 and 100")
+
+        font_path = Path(self.config["FONT_PATH"])
+        if not font_path.is_file():
+            raise ValueError(f"Font file not found: {font_path}")
+
+        hex_to_rgb(self.config["TEXT_COLOR"])
+        hex_to_rgb(self.config["BACKGROUND_COLOR"])
+
+    def _add_noise_dots(
+        self,
+        draw: ImageDraw.ImageDraw,
+        width: int,
+        height: int,
+    ) -> None:
         """Add random dots to the image."""
-        noise_level = self.config["NOISE_LEVEL"]
-        num_dots = int((width * height) * noise_level / 1000)
-        
+        num_dots = int((width * height) * self.config["NOISE_LEVEL"] / 1000)
         for _ in range(num_dots):
-            x = random.randint(0, width)
-            y = random.randint(0, height)
-            draw.point((x, y), fill=self.config["TEXT_COLOR"])
-            
-    def _add_noise_lines(self, draw: ImageDraw.ImageDraw, width: int, height: int) -> None:
+            draw.point(
+                (_RANDOM.randrange(width), _RANDOM.randrange(height)),
+                fill=self.text_color,
+            )
+
+    def _add_noise_lines(
+        self,
+        draw: ImageDraw.ImageDraw,
+        width: int,
+        height: int,
+    ) -> None:
         """Add random lines to the image."""
-        noise_level = self.config["NOISE_LEVEL"]
-        num_lines = int(noise_level / 10)
-        
+        num_lines = int(self.config["NOISE_LEVEL"] / 10)
         for _ in range(num_lines):
-            x1 = random.randint(0, width)
-            y1 = random.randint(0, height)
-            x2 = random.randint(0, width)
-            y2 = random.randint(0, height)
-            draw.line([(x1, y1), (x2, y2)], fill=self.config["TEXT_COLOR"])
-            
+            draw.line(
+                [
+                    (_RANDOM.randrange(width), _RANDOM.randrange(height)),
+                    (_RANDOM.randrange(width), _RANDOM.randrange(height)),
+                ],
+                fill=self.text_color,
+            )
+
     def generate_image(self, text: Optional[str] = None) -> Tuple[str, Image.Image, str]:
-        """
-        Generate a CAPTCHA image.
-        
-        Args:
-            text: Optional custom text for the CAPTCHA
-            
-        Returns:
-            Tuple of (captcha_id, PIL Image, text)
-        """
-        text = text or generate_text(self.config["LENGTH"])
+        """Return a CAPTCHA id, generated Pillow image, and expected text."""
+        if text is None:
+            text = generate_text(self.config["LENGTH"], self.config["CHARACTERS"])
+        if not isinstance(text, str) or not text:
+            raise ValueError("CAPTCHA text must be a non-empty string")
+
         width = self.config["WIDTH"]
         height = self.config["HEIGHT"]
-        
-        # Create image
-        image = Image.new('RGB', (width, height), self.config["BACKGROUND_COLOR"])
+        image = Image.new("RGB", (width, height), self.background_color)
         draw = ImageDraw.Draw(image)
-        
-        # Calculate text position
-        text_width = draw.textlength(text, font=self.font)
-        text_height = self.font.size
-        x = (width - text_width) // 2
-        y = (height - text_height) // 2
-        
-        # Add noise
+
         if self.config["USE_DOTS"]:
             self._add_noise_dots(draw, width, height)
         if self.config["USE_LINES"]:
             self._add_noise_lines(draw, width, height)
-            
-        # Draw text
-        draw.text((x, y), text, font=self.font, fill=hex_to_rgb(self.config["TEXT_COLOR"]))
+
+        left, top, right, bottom = draw.textbbox((0, 0), text, font=self.font)
+        text_width = right - left
+        text_height = bottom - top
+        x = (width - text_width) / 2 - left
+        y = (height - text_height) / 2 - top
+        draw.text((x, y), text, font=self.font, fill=self.text_color)
+
         return str(uuid.uuid4()), image, text
